@@ -1,32 +1,38 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import numpy as np
-import pickle
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+import tensorflow as tf
 
 app = FastAPI()
 
-model = load_model("text_model.h5")
-with open("tokenizer.pkl", "rb") as f:
-    tokenizer = pickle.load(f)
+# Allow all origins (frontend on any domain can access)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-max_len = 20
-
+# Pydantic model for request
 class PredictRequest(BaseModel):
     text: str
-    next_words: int = 3
+    next_words: int
 
-@app.get("/")
-def home():
-    return {"message": "Smart Text Predictor API is running"}
+# Load your trained TensorFlow/Keras model
+model = tf.keras.models.load_model("model")  # make sure your model is in "model/" folder
 
 @app.post("/predict")
-def predict(request: PredictRequest):
-    seed_text = request.text
-    for _ in range(request.next_words):
-        token_list = tokenizer.texts_to_sequences([seed_text])[0]
-        token_list = pad_sequences([token_list[-max_len:]], maxlen=max_len)
-        predicted_index = np.argmax(model.predict(token_list, verbose=0))
-        seed_text += " " + tokenizer.index_word.get(predicted_index, "")
-    return {"prediction": seed_text}
+async def predict(req: PredictRequest):
+    input_text = req.text
+    next_words = req.next_words
+    
+    # Example: replace this with actual model prediction logic
+    # For demonstration, we just repeat the input text
+    prediction = f"{input_text} ... predicted {next_words} words"
+    
+    return {"prediction": prediction}
+
+@app.get("/")
+def root():
+    return {"message": "Smart Text Predictor API is running"}
