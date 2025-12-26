@@ -1,24 +1,14 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import pickle
+import os
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import uvicorn
 
 app = FastAPI()
 
-# Allow any website to call your API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],   # <- this allows all domains
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Load saved model and tokenizer
 model = load_model("text_model.h5")
-
 with open("tokenizer.pkl", "rb") as f:
     tokenizer = pickle.load(f)
 
@@ -35,6 +25,9 @@ def predict(text: str, next_words: int = 3):
         token_list = tokenizer.texts_to_sequences([seed_text])[0]
         token_list = pad_sequences([token_list[-max_len:]], maxlen=max_len)
         predicted_index = np.argmax(model.predict(token_list, verbose=0))
-        output_word = tokenizer.index_word.get(predicted_index, "")
-        seed_text += " " + output_word
+        seed_text += " " + tokenizer.index_word.get(predicted_index, "")
     return {"prediction": seed_text}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
